@@ -2,15 +2,21 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabaseClient'
+// FIX 1: Change import from the constant 'supabase' to the function 'createClient'
+import { createClient } from '@/lib/supabaseClient' 
 
 export default function Dashboard() {
+  // FIX 2: Create the client instance inside the function scope.
+  // We can do this once at the top because this is a Client Component.
+  const supabase = createClient() 
+
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
+    // Client is now accessed via the 'supabase' constant created above.
     supabase.auth.getUser().then((res) => {
       if (!res.data?.user) router.push('/login')
       else setUser(res.data.user)
@@ -26,16 +32,20 @@ export default function Dashboard() {
 
     try {
       const fileName = `${user.id}/${Date.now()}_${file.name}`
+      
+      // Upload file
       const { error: upErr } = await supabase.storage
         .from('uploads')
         .upload(fileName, file)
 
       if (upErr) throw upErr
 
+      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('uploads')
         .getPublicUrl(fileName)
 
+      // Call RPC function
       const { error: rpcErr } = await supabase.rpc('insert_report_with_file', {
         p_user_id: user.id,
         p_title: file.name,
